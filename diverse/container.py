@@ -14,14 +14,8 @@ class BaseContainer(object):
     __metaclass__ = MetaContainer
     attrname = 'dc'
     _versions = None
-    _version_params = ('conveyor', 'versionfile', 'filename', 
-                       'extension', 'storage', 'cache', 'quiet', 'lazy',)
-    
-    # todo: may be allow to define values for versions in container
-    #       for example: vparams = {'lazy': True,} 
-    #       will set lazy to True for all versions with lazy == None
-    # todo: add filestorage with non unique_names, for strict 
-    #       version file creation
+    _version_params = ('conveyor', 'versionfile', 'accessor',
+                       'filename', 'extension', 'storage',)
 
     @classmethod
     def version_params(cls):
@@ -31,17 +25,17 @@ class BaseContainer(object):
 
     @classmethod
     def version_register(cls, name, value):
-        # set container specific version params 
+        # set container specific version params
         # and force attrname assign to version
         params = cls.version_params()
         value.params(**params) if params else None
         value.params(attrname=name, force=True)
-        
+
         # register version in internal registry
         # and del same named container property
         cls._versions.__setitem__(name, value)
         hasattr(cls, name) and delattr(cls, name)
-    
+
     def __init__(self, source_file, data=None):
         self.source_file = source_file
         self.data = data
@@ -58,7 +52,7 @@ class BaseContainer(object):
 
     def version(self, name, instantiate=True):
         """
-        version get method, for overrite behaviour of version creating to set 
+        version get method, for overrite behaviour of version creating to set
         some attrs in all(any) versions directly (use on your own risk),
         for example, like that:
 
@@ -71,13 +65,13 @@ class BaseContainer(object):
         if name not in self._versions:
             raise IndexError('Version with name %s does not exists.' % name)
 
-        return self._versions[name].version(self.source_file, data=self.data, 
+        return self._versions[name].version(self.source_file, data=self.data,
                                             instantiate=instantiate)
 
     def post_save_handler(self):
         """model post save handler"""
         for name in self._versions.keys():
-            self.__getattr__(name).post_save_handler()
+            self.__getattr__(name).create()
 
     def delete_versions(self):
         """model pre delete handler"""

@@ -104,7 +104,7 @@ class DiverseFileField(FileField):
                 # And it's not the default value for future objects,
                 # delete it from the backend (or just delete versions).
                 file.delete(save=save) if self.erasable \
-                else file._container.delete_versions()
+                                       else file._container.delete_versions()
             else:
                 # Otherwise, just erase all version files.
                 file._container.delete_versions()

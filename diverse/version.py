@@ -1,6 +1,5 @@
 from diverse.conveyor import TempFileConveyor
 from diverse.files import VersionFile, VersionImageFile
-from diverse.cache import ModelCache
 import os
 
 # todo: may be remove this abstraction?
@@ -8,69 +7,61 @@ class BaseVersion(object):
     # default values
     attrname = None
     conveyor = None
-    storage = None
-    cache = None
     versionfile = None
-    lazy = None
-    quiet = None
     filename = None
     extension = None
+    storage = None
+    accessor = None
 
-    def __init__(self, processors, 
+    def __init__(self, processors,
                   attrname=None, conveyor=None, versionfile=None,
                    filename=None, extension=None, storage=None,
-                    cache=None, quiet=None, lazy=None):
+                    accessor=None):
         """
         processors  - list or one of processor instances
         attrname    - name of version file (usually assign by container)
         conveyor    - processors conveyor class
         versionfile - real file class (some like django FieldFile)
         filename    - pattern with named keys (dirname, basename, attrname, extension)
-                      or with %s key for extension (internal, use on your own risc)
                       or callable (important: result must be source content independent):
                         receive source_file, namedict and additional args
                         return pattern with one %s key for extension
         extension   - string value of ext (.ext), usually empty - versionfile class
                       get it by _suggested_extension (extension value by processors)
         storage     - django file storage instance (todo: :default -> default storage)
-        cache       - cache class for caching datarel attrs
-        quiet       - be quiet if generation errors
-        lazy        - be lazy
+        accessor    - access policy configuration params
         """
 
         self.processors = processors if isinstance(processors, list) else [processors]
         self.params(attrname=attrname, conveyor=conveyor, versionfile=versionfile,
-                     filename=filename, extension=extension, storage=storage, 
-                      cache=cache, quiet=quiet, lazy=lazy, force=True)
+                     filename=filename, extension=extension, storage=storage,
+                      accessor=accessor, force=True)
 
         if not self.versionfile:
             raise ValueError('Versionfile value is required (by init args or class property).')
 
-    def params(self, attrname=None, conveyor=None,
-                filename=None, extension=None, storage=None,
-                 versionfile=None, cache=None, quiet=None, lazy=None,
-                  force=False):
+    def params(self, attrname=None, conveyor=None, versionfile=None,
+                      filename=None, extension=None, storage=None,
+                       accessor=None, force=False):
         """
         each param purpose look at __init__ docstring
         this method alters each param only if original value is None or force
         """
 
-        pdict = ('attrname', 'conveyor', 'versionfile', 
-                 'filename', 'extension', 'storage', 'cache', 'quiet', 'lazy',)
+        pdict = ('attrname', 'conveyor', 'versionfile',
+                 'filename', 'extension', 'storage', 'accessor',)
         pdict = dict([(i, locals().get(i, None)) for i in pdict])
         check = lambda name: (force and pdict.get(name) is not None) or \
                              getattr(self, name) is None
 
         self.attrname = attrname if check('attrname') else self.attrname
         self.conveyor = conveyor if check('conveyor') else self.conveyor
+        self.versionfile = versionfile if check('versionfile') else self.versionfile
         self.filename = filename if check('filename') else self.filename
         self.extension = extension if check('extension') and self._check_extension(extension) \
-                         else self.extension
+                                   else self.extension
         self.storage = storage if check('storage') else self.storage
-        self.versionfile = versionfile if check('versionfile') else self.versionfile
-        self.cache = cache if check('cache') else self.cache
-        self.quiet = bool(quiet) if check('quiet') else self.quiet
-        self.lazy = bool(lazy) if check('lazy') else self.lazy
+        self.accessor = accessor if check('accessor') else self.accessor
 
     def getextension(self, source_file, *args):
         return self.extension
@@ -82,11 +73,11 @@ class BaseVersion(object):
 
     def getfilename(self, source_file, *args):
         filename = self.filename
+        namedict = self.filenamedict(source_file, *args)
         if callable(filename):
-            namedict = self.filenamedict(source_file, *args)
             filename = filename(source_file, namedict, *args)
-        elif filename and '%s' not in filename:
-            filename = filename % self.filenamedict(source_file, *args)
+        elif filename:
+            filename = filename % namedict
         return filename
 
     def filenamedict(self, source_file, *args):
@@ -101,12 +92,10 @@ class BaseVersion(object):
                              ' class property or direct assignation).')
 
         arguments = [self.attrname, source_file, self.processors,]
-        kwarguments = {'storage': self.storage,
-                       'data': data,
-                       'conveyor': self.conveyor,
-                       'cache': self.cache,
-                       'quiet': self.quiet,
-                       'lazy': self.lazy, }
+        kwarguments = {'conveyor': self.conveyor,
+                       'storage': self.storage,
+                       'accessor': self.accessor,
+                       'data': data,}
 
         # add data related values
         argslocal = [data, arguments, kwarguments]
@@ -123,9 +112,7 @@ class BaseVersion(object):
 class Version(BaseVersion):
     conveyor = TempFileConveyor
     versionfile = VersionFile
-    cache = ModelCache
 
 class ImageVersion(BaseVersion):
     conveyor = TempFileConveyor
     versionfile = VersionImageFile
-    cache = ModelCache

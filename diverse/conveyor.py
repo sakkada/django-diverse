@@ -3,9 +3,6 @@ from django.core.files.storage import FileSystemStorage
 from . import settings
 import mimetypes, shutil, hashlib, os, time
 
-# todo: add filestorage with non unique_names, for strict 
-#       temporary file creation (see todo in container also)
-
 class VersionGenerationError(Exception):
     pass
 
@@ -48,7 +45,6 @@ class TempFileConveyor(Conveyor):
         tempname = os.path.splitext(source_file.name)
         tempname = '%s%s' % (md5hash.hexdigest(), tempname[1])
         tempname = self.storage.save(tempname, source_file)
-        tempname = self.storage.path(tempname)
         mimetype = mimetypes.guess_type(tempname)
 
         # safe processors call and close source
@@ -56,26 +52,29 @@ class TempFileConveyor(Conveyor):
         try:
             # run processors conveyor
             for processor in filever.processors():
-                status, mimetype = processor.run(tempname, mimetype, self.storage, filever)
-                if not status: break
+                tempname, mimetype = processor.run(tempname, mimetype,
+                                                    self.storage, filever)
+                if not tempname: break
         except Exception, e:
             status = False
             # alter default exception message
-            message = 'File version "%s" generation error for "%s" at %s. Real reason' \
-                      ' is: %%s' % (filever.attrname, source_file.name, processor.__class__)
+            message = 'File version "%s" generation error for "%s" at %s. Real' \
+                      ' reason is: %%s' % (filever.attrname, source_file.name,
+                                           processor.__class__)
             e.args = tuple([message % e.args[0]] + list(e.args[1:]))
             raise
         else:
             if status:
                 # save target file with destination storage
+                # todo: check new filename correctness
                 with self.storage.open(tempname) as tempfile:
                     dest_storage.save(filever.path, tempfile)
         finally:
             # close source and delete temporary
             source_closed and source_file.close()
             # warning: delete is unsafe with locks (especially write mode locks)
-            #          that means that each processor have to be extremally safety
-            #          with opened filepointers
+            #          that means that each processor have to be extremally
+            #          safety with opened filepointers
             self.storage.delete(tempname)
 
         if not status:

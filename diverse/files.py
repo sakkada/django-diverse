@@ -1,24 +1,24 @@
 from django.core.files.images import get_image_dimensions
+from settings import QUIET_OPERATION
+from accessor import LazyPolicyAccessorMixin
 import os, mimetypes
 
-class VersionFile(object):
-
+# todo: add logging
+class VersionFileBase(object):
     # state attrs
     _generated = False
+    _attrs = None
 
     # attrs names
     attrs_unrel = ['url', 'mimetype',]
     attrs_rel   = ['size',]
 
     # default values
-    quiet = False
-    lazy = False
-    cache = None
     _conveyor = None
 
     def __init__(self, attrname, source_file, processors,
-                  filename=None, extension=None, storage=None, data=None,
-                   conveyor=None, cache=None, quiet=None, lazy=None):
+                  filename=None, extension=None, storage=None,
+                   data=None, conveyor=None, accessor=None):
         """
         attrname    - name of version file
         source_file - django db file instance
@@ -28,18 +28,14 @@ class VersionFile(object):
                       if empty: get _default_filename result value
         extension   - string value of ext (.ext), usually empty
         storage     - django file storage instance
-        cache       - cache class for caching datarel attrs
         data        - additional data (model, instance, ect.)
-        quiet       - be quiet if generation errors
-        lazy        - be lazy
+        accessor    - access policy configuration params
         """
 
         self.attrname = attrname
         self.source_file = source_file
         self.data = data
-        self.quiet = self.quiet if quiet is None else bool(quiet)
-        self.lazy = self.lazy if lazy is None else bool(lazy)
-        self.cache = cache or self.cache
+        self.accessor = accessor
 
         # attrs list working via getters
         self._processors = processors if isinstance(processors, list) else [processors]
@@ -69,67 +65,47 @@ class VersionFile(object):
         # related method
         return self.storage().size(self.name)
 
-    # magic get/set methods (with laziness checking)
+    # magic get/set methods
     def __setattr__(self, name, value):
         if name in self.attrs_rel + self.attrs_unrel:
-            raise ValueError('You can\'t assign attributes named like attrs_rel(_unrel) entries.')
-        super(VersionFile, self).__setattr__(name, value)
+            raise ValueError('You can\'t assign attributes named like'
+                             ' attrs_rel(_unrel) entries.')
+        super(VersionFileBase, self).__setattr__(name, value)
 
+    # policy: getting attr, creation and deletion
+    #         overridable by accessor
     def __getattr__(self, name):
-        # name in data related keys
-        if name in self.attrs_rel:
-            # get from cache
-            value = self.cache_get().get(name, None)
-            if not self.lazy and value is not None:
-                pass
+        # name in data related or unrelated keys
+        if name in self.attrs_rel + self.attrs_unrel:
             # get from state
-            elif self._attrs.has_key(name):
-                value = self._attrs[name]
+            value = self._attrs.get('name', None)
             # get real value and set to state
-            else:
+            if value is None:
                 if self.generate(): return None
-                value = self.__getattribute__('_get_%s' % name)()
-                self._attrs[name] = value
-
-        # name in data unrelated keys
-        elif name in self.attrs_unrel:
-            # get from state
-            if self._attrs.has_key(name):
-                value = self._attrs[name]
-            # get real value and set to state
-            else:
-                if self.lazy and self.generate(): return None
-                value = self.__getattribute__('_get_%s' % name)()
-                self._attrs[name] = value
-
+                value = self._attrs[name] = self.__getattribute__('_get_%s' % name)()
         # raise std exception
         else:
-            self.__getattribute__(name)
+            value = self.__getattribute__(name)
 
         return value
 
-    # creation and deletion
-    def post_save_handler(self, force=False):
-        if self.lazy and not force:
-            return None
+    def create(self, force=False):
         self.generate(force=force)
 
     def delete(self):
-        self.lazy or self.cache_delete()
         self.storage().delete(self.name)
 
+    # version generation
     def generate(self, force=False):
         if self._generated and not force:
             return
         try:
-            self.process()
+            self.process(force=force)
         except:
-            if not self.quiet: raise
+            if not QUIET_OPERATION: raise
             return 1
         self._generated = True
-        self.lazy or self.cache_set()
 
-    # processing
     def process(self, force=False):
         self.conveyor().run(self, force=force)
 
@@ -191,34 +167,9 @@ class VersionFile(object):
                                       % (proc.__class__.__name__, extension))
         return extension
 
-    # cache system
-    def cache_get(self):
-        if not hasattr(self, '_attrs_cache'):
-            if self.cache:
-                data = self.cache().get(self) or {}
-                data = dict([(i,j) for i,j in data.items() if i in self.attrs_rel])
-                self._attrs_cache = data
-            else:
-                self._attrs_cache = {}
-        return self._attrs_cache
-
-    def cache_set(self):
-        if not self.cache or self.generate():
-            return None
-
-        data = {}
-        for i in self.attrs_rel:
-            data[i] = self.__getattribute__('_get_%s' % i)()
-
-        self._attrs_cache = data
-        return self.cache().set(self, data)
-
-    def cache_delete(self):
-        self.cache and self.cache().delete(self)
-
-class VersionImageFile(VersionFile):
+class VersionImageFileBase(VersionFileBase):
     # add data related attrs
-    attrs_rel = VersionFile.attrs_rel + ['width', 'height',]
+    attrs_rel = VersionFileBase.attrs_rel + ['width', 'height',]
 
     def _get_width(self):
         # related method
@@ -235,3 +186,10 @@ class VersionImageFile(VersionFile):
             else:
                 self._dimensions_cache = [None, None]
         return self._dimensions_cache
+
+# default versionfile classes
+class VersionFile(LazyPolicyAccessorMixin, VersionFileBase):
+    pass
+
+class VersionImageFile(LazyPolicyAccessorMixin, VersionImageFileBase):
+    pass

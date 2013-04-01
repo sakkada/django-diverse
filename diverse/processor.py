@@ -1,9 +1,9 @@
 class BaseProcessor(object):
-    def run(self, path, mimetype, storage, filever):
-        self.process(path, mimetype, storage, filever)
-        return self.status, self.mimetype
+    def run(self, name, mimetype, storage, filever):
+        # (filename (as status), mimetype,) tuple expected
+        return self.process(name, mimetype, storage, filever)
 
-    def process(self, path, mimetype, storage, filever):
+    def process(self, name, mimetype, storage, filever):
         raise NotImplementedError
 
     def extension(self, filever):

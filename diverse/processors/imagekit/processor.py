@@ -14,23 +14,6 @@ class ImageKit(BaseProcessor):
         self.options = options or {}
         self.autoconvert = autoconvert
 
-    def savetempfile(self, storage, path, content):
-        # try to save file to the same path using storage
-        # todo: may be do something with this?
-        #       now allow to work with files in processor manually
-        #       because of check for local FS storage added
-        counter = 9 # may be another?
-        while counter>0:
-            path = os.path.abspath(path)
-            storage.delete(path)
-            pnew = storage.save(path, content)
-            pnew = os.path.abspath(pnew)
-            if pnew == path: break
-            storage.delete(pnew)
-            counter-=1
-
-        return counter>0
-
     def extension(self, filever):
         if self.format:
             try:
@@ -42,30 +25,30 @@ class ImageKit(BaseProcessor):
             extension = ':same'
         return extension
 
-    def process(self, path, mimetype, storage, filever):
-        self.status, self.mimetype = False, mimetype
+    def process(self, name, mimetype, storage, filever):
+        filename, mimetype = False, mimetype
 
-        # todo: what should we do if not exists?
+        # exception will be processed in versionfile generate method
         try:
-            fp = storage.open(path)
+            fp = storage.open(name)
         except IOError:
-            return
+            raise
 
         # get content and close processing file
-        fp.seek(0)
         content = StringIO(fp.read())
         fp.close()
 
         # main transformation call
-        content = self._process_content(path, content, filever.source_file)
+        content = self._process_content(name, content, filever.source_file)
 
-        # try to save to processing file (required same name)
-        status = self.savetempfile(storage, path, content)
+        # save processing file (delete original and save new with same name)
+        storage.delete(name)
+        filename = storage.save(name, content)
 
-        # result status and mimetype for next proc
-        self.status, self.mimetype = status, content.file.content_type
+        # result filename (as status) and mimetype for next proc
+        return filename, content.file.content_type
 
-    def _process_content(self, filename, content, filever):
+    def _process_content(self, filename, content, source_file):
         # method code mostly based on
         #   imagekit.generators.SpecFileGenerator.process_content
         #   - filename param has now become required
