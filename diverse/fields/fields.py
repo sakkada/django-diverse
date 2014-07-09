@@ -57,24 +57,35 @@ class DiverseFileField(FileField):
             raise ValueError('Container is required for Diverse FileField.')
 
     def save_form_data(self, instance, data):
-        # overwrite to delete file if checkbox is selected
         if data == '__delete__' and self.blank and self.clearable:
-            # delete file (or versions) while delete "checkbox" checked
+            self.__pre_save_action__ = '__delete__'
+        elif data == '__update__' and self.updatable:
+            self.__pre_save_action__ = '__update__'
+        else:
+            self.__pre_save_action__ = '__erase_previous__'
+            super(DiverseFileField, self).save_form_data(instance, data)
+
+    def pre_save(self, instance, add):
+        action = getattr(self, '__pre_save_action__', None)
+        if action == '__delete__':
+            # delete file (or versions) if delete checkbox is checked
             file = getattr(instance, self.name)
             self._safe_erase(file, instance)
             setattr(instance, self.name, None)
-        elif data == '__update__' and self.updatable:
-            # update file versions while update "checkbox" checked
+        elif action == '__update__':
+            # update file versions if update checkbox is checked
             file = getattr(instance, self.name)
             file._container.delete_versions()
             file._container.post_save_handler()
-        else:
+        elif action == '__erase_previous__':
             # erase old file (or versions) before update if field is erasable
-            if instance.pk and data:
-                file = instance.__class__.objects.get(pk=instance.pk)
-                file = getattr(file, self.name)
-                file and file != data and self._safe_erase(file, instance)
-            super(DiverseFileField, self).save_form_data(instance, data)
+            file = getattr(instance, self.name)
+            if not add and file:
+                orig = instance.__class__.objects.filter(pk=instance.pk)
+                orig = list(orig) and getattr(orig[0], self.name)
+                orig and orig != file and self._safe_erase(orig, instance)
+
+        return super(DiverseFileField, self).pre_save(instance, add)
 
     def formfield(self, **kwargs):
         keys = ['clearable', 'updatable',]
