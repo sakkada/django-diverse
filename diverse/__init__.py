@@ -16,4 +16,4 @@ image file objects:
     - _get_image_dimensions
 """
 
-VERSION = (0, 1, 3)
+VERSION = (0, 1, 4)

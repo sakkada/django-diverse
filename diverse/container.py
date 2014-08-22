@@ -73,7 +73,7 @@ class BaseContainer(object):
         for name in self._versions.keys():
             self.__getattr__(name).create()
 
-    def delete_versions(self):
+    def pre_delete_handler(self):
         """model pre delete handler"""
         for name in self._versions.keys():
             self.__getattr__(name).delete()

@@ -1,4 +1,4 @@
-from django.utils import simplejson
+import json
 from django.db.models import FieldDoesNotExist
 
 class BaseCache(object):
@@ -44,7 +44,7 @@ class ModelCache(object):
         if instance and cachefield:
             cache = getattr(instance, cachefield, '')
             try:
-                value = simplejson.loads(cache) if cache else {}
+                value = json.loads(cache) if cache else {}
             except ValueError:
                 value = {}
             value = value.get(version.attrname, {})
@@ -57,11 +57,11 @@ class ModelCache(object):
         if instance and cachefield:
             cache = getattr(instance, cachefield, '')
             try:
-                value = simplejson.loads(cache) if cache else {}
+                value = json.loads(cache) if cache else {}
             except ValueError:
                 value = {}
             value.__setitem__(version.attrname, data)
-            value = simplejson.dumps(value)
+            value = json.dumps(value)
             setattr(instance, cachefield, value)
             self.update_instance(instance, cachefield)
 
@@ -74,11 +74,11 @@ class ModelCache(object):
         if instance and cachefield:
             cache = getattr(instance, cachefield, '')
             try:
-                value = simplejson.loads(cache) if cache else {}
+                value = json.loads(cache) if cache else {}
             except ValueError:
                 value = {}
             value.has_key(version.attrname) and value.pop(version.attrname)
-            value = simplejson.dumps(value) if value else ''
+            value = json.dumps(value) if value else ''
             setattr(instance, cachefield, value)
             self.update_instance(instance, cachefield)
 

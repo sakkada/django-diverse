@@ -20,7 +20,7 @@ class DiverseFieldFile(FieldFile):
         self._container.post_save_handler()
 
     def delete(self, *args, **kwargs):
-        self._container.delete_versions()
+        self._container.pre_delete_handler()
         super(DiverseFieldFile, self).delete(*args, **kwargs)
 
     @property
@@ -75,7 +75,7 @@ class DiverseFileField(FileField):
         elif action == '__update__':
             # update file versions if update checkbox is checked
             file = getattr(instance, self.name)
-            file._container.delete_versions()
+            file._container.pre_delete_handler()
             file._container.post_save_handler()
         elif action == '__erase_previous__':
             # erase old file (or versions) before update if field is erasable
@@ -115,10 +115,10 @@ class DiverseFileField(FileField):
                 # And it's not the default value for future objects,
                 # delete it from the backend (or just delete versions).
                 file.delete(save=save) if self.erasable \
-                                       else file._container.delete_versions()
+                                       else file._container.pre_delete_handler()
             else:
                 # Otherwise, just erase all version files.
-                file._container.delete_versions()
+                file._container.pre_delete_handler()
         # Try to close the file, so it doesn't tie up resources.
         file.closed or file.close()
 
