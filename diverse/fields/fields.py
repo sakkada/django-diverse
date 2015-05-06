@@ -1,8 +1,10 @@
+import os
 from django.db.models import signals
 from django.db.models.fields.files import FileField, FieldFile
 from django.db.models.fields.files import ImageField, ImageFieldFile
+from django.core import checks
 from forms import DiverseFormFileField, DiverseFormImageField
-import os
+
 
 # file attr class
 class DiverseFieldFile(FieldFile):
@@ -28,6 +30,7 @@ class DiverseFieldFile(FieldFile):
         file = getattr(self.instance, self.field.name)
         return file and os.path.splitext(file.name)[1]
 
+
 # image attr class
 class DiverseImageFieldFile(DiverseFieldFile, ImageFieldFile):
     def thumbnail(self):
@@ -40,6 +43,7 @@ class DiverseImageFieldFile(DiverseFieldFile, ImageFieldFile):
         return '<img src="%s" alt="%s" />' % (thumbnail.url, thumbnail.url,) \
                if thumbnail else '[no thumbnail]'
 
+
 # file field
 class DiverseFileField(FileField):
     attr_class = DiverseFieldFile
@@ -50,11 +54,48 @@ class DiverseFileField(FileField):
         self.container, self.erasable = container, erasable
         self.clearable, self.updatable = clearable, updatable
 
-        if not self.blank and self.clearable:
-            raise ValueError('Non blank FileField can not be clearable.')
+        #if not self.blank and self.clearable:
+        #    raise ValueError('Non blank FileField can not be clearable.')
 
+        #if not self.container:
+        #    raise ValueError('Container is required for Diverse FileField.')
+
+    # django system check framework
+    def check(self, **kwargs):
+        errors = super(DiverseFileField, self).check(**kwargs)
+        errors.extend(self._check_clearable())
+        errors.extend(self._check_container())
+        return errors
+
+    def _check_clearable(self):
+        if not self.blank and self.clearable:
+            return [
+                checks.Error(
+                    'Non blank FileField can not be clearable.',
+                    hint='Either set blank to True, or clearable to False.',
+                    obj=self,
+                    id='diverse.fields.E001',
+                )
+            ]
+        return []
+
+    def _check_container(self):
         if not self.container:
-            raise ValueError('Container is required for Diverse FileField.')
+            return [
+                checks.Error(
+                    'Container is required for Diverse FileField.',
+                    hint=None,
+                    obj=self,
+                    id='diverse.fields.E002',
+                )
+            ]
+        return []
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(DiverseFileField, self).deconstruct()
+        # del kwargs['blank']
+        # kwargs['container'] = self.container
+        return name, path, args, kwargs
 
     def save_form_data(self, instance, data):
         if data == '__delete__' and self.blank and self.clearable:
@@ -128,6 +169,7 @@ class DiverseFileField(FileField):
         field_class = "django.db.models.fields.files.FileField"
         args, kwargs = introspector(self)
         return (field_class, args, kwargs)
+
 
 # image field
 class DiverseImageField(DiverseFileField, ImageField):
