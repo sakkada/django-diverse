@@ -13,7 +13,6 @@ import sys
 import types
 
 from django.core.files.base import ContentFile
-from django.db.models.loading import cache
 from django.utils.functional import wraps
 from django.utils.encoding import smart_str, smart_unicode
 
