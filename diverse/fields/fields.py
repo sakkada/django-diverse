@@ -107,7 +107,7 @@ class DiverseFileField(FileField):
             super(DiverseFileField, self).save_form_data(instance, data)
 
     def pre_save(self, instance, add):
-        action = getattr(self, '__pre_save_action__', None)
+        action = getattr(self, '__pre_save_action__', '__erase_previous__')
         if action == '__delete__':
             # delete file (or versions) if delete checkbox is checked
             file = getattr(instance, self.name)
