@@ -39,7 +39,7 @@ class ImageKit(BaseProcessor):
         fp.close()
 
         # main transformation call
-        content = self._process_content(name, content, filever.source_file)
+        content = self._process_content(name, content, filever)
 
         # save processing file (delete original and save new with same name)
         storage.delete(name)
@@ -48,7 +48,7 @@ class ImageKit(BaseProcessor):
         # result filename (as status) and mimetype for next proc
         return filename, content.file.content_type
 
-    def _process_content(self, filename, content, source_file):
+    def _process_content(self, filename, content, filever):
         # method code mostly based on
         #   imagekit.generators.SpecFileGenerator.process_content
         #   - filename param has now become required
@@ -57,6 +57,7 @@ class ImageKit(BaseProcessor):
         #   - img_to_fobj now receive also autoconvert param
         #   - return only content value, not img as first
 
+        source_file = filever.source_file
         img = open_image(content)
         original_format = img.format
 
@@ -64,7 +65,7 @@ class ImageKit(BaseProcessor):
         processors = self.processors
         if callable(processors):
             processors = processors(source_file, self.mimetype)
-        img = ProcessorPipeline(processors or []).process(img)
+        img = ProcessorPipeline(processors or []).process(img, filever)
 
         options = dict(self.options or {})
 

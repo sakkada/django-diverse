@@ -108,10 +108,12 @@ class BaseVersion(object):
         cls, args, kwargs = self.arguments(source_file, data=data)
         return cls(*args, **kwargs) if instantiate else (cls, args, kwargs)
 
+
 # build in version classes
 class Version(BaseVersion):
     conveyor = TempFileConveyor
     versionfile = VersionFile
+
 
 class ImageVersion(BaseVersion):
     conveyor = TempFileConveyor

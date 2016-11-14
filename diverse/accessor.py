@@ -1,5 +1,6 @@
 from diverse.cache import ModelCache
 
+
 class LazyPolicyAccessorMixin(object):
     ac_cache = ModelCache
     ac_lazy  = False
@@ -12,7 +13,8 @@ class LazyPolicyAccessorMixin(object):
 
     # cache accessors
     def cache_get(self):
-        if not self.ac_cache: return {}
+        if not self.ac_cache:
+            return {}
         if not hasattr(self, '_attrs_cache'):
             data = self.ac_cache().get(self) or {}
             data = dict([(i,j) for i,j in data.items() if i in self.attrs_rel])
@@ -20,7 +22,8 @@ class LazyPolicyAccessorMixin(object):
         return self._attrs_cache
 
     def cache_set(self):
-        if not self.ac_cache: return None
+        if not self.ac_cache:
+            return None
         data = dict((i, self.__getattribute__('_get_%s' % i)(),)
                     for i in self.attrs_rel)
         self._attrs_cache = data
@@ -43,10 +46,10 @@ class LazyPolicyAccessorMixin(object):
                 value = self._attrs[name]
             # get real value and set to state
             else:
-                if self.generate(): return None
+                if self.generate():
+                    return None
                 value = self.__getattribute__('_get_%s' % name)()
                 self._attrs[name] = value
-                self.ac_lazy or self.cache_set() # does it need here?
 
         # name in data unrelated keys
         elif name in self.attrs_unrel:
@@ -65,7 +68,7 @@ class LazyPolicyAccessorMixin(object):
 
         return value
 
-    # different: check laziness and save/delete cache if not lazy
+    # differents: check laziness and save/delete cache if not lazy
     def create(self, force=False):
         if self.ac_lazy and not force:
             return None

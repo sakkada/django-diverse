@@ -1,7 +1,9 @@
+import os
+import mimetypes
 from django.core.files.images import get_image_dimensions
 from settings import QUIET_OPERATION
 from accessor import LazyPolicyAccessorMixin
-import os, mimetypes
+
 
 # todo: add logging
 class VersionFileBase(object):
@@ -187,9 +189,11 @@ class VersionImageFileBase(VersionFileBase):
                 self._dimensions_cache = [None, None]
         return self._dimensions_cache
 
+
 # default versionfile classes
 class VersionFile(LazyPolicyAccessorMixin, VersionFileBase):
     pass
+
 
 class VersionImageFile(LazyPolicyAccessorMixin, VersionImageFileBase):
     pass

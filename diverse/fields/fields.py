@@ -3,7 +3,8 @@ from django.db.models import signals
 from django.db.models.fields.files import FileField, FieldFile
 from django.db.models.fields.files import ImageField, ImageFieldFile
 from django.core import checks
-from forms import DiverseFormFileField, DiverseFormImageField
+from .forms import DiverseFormFileField, DiverseFormImageField
+from .validators import isuploaded
 
 
 # file attr class
@@ -19,10 +20,11 @@ class DiverseFieldFile(FieldFile):
 
     def save(self, *args, **kwargs):
         super(DiverseFieldFile, self).save(*args, **kwargs)
-        self._container.post_save_handler()
+        if not self.field.get_action(self.instance):
+            self.field.set_action(self.instance, '__update__') # in post_save
 
     def delete(self, *args, **kwargs):
-        self._container.pre_delete_handler()
+        self._container.delete_versions()
         super(DiverseFieldFile, self).delete(*args, **kwargs)
 
     @property
@@ -40,8 +42,8 @@ class DiverseImageFieldFile(DiverseFieldFile, ImageFieldFile):
     @property
     def thumbnail_tag(self):
         thumbnail = self.thumbnail()
-        return '<img src="%s" alt="%s" />' % (thumbnail.url, thumbnail.url,) \
-               if thumbnail else '[no thumbnail]'
+        return ('<img src="%s" alt="%s" />' % (thumbnail.url, thumbnail.url,)
+                if thumbnail else '[no thumbnail]')
 
 
 # file field
@@ -53,12 +55,6 @@ class DiverseFileField(FileField):
         super(DiverseFileField, self).__init__(verbose_name=verbose_name, **kwargs)
         self.container, self.erasable = container, erasable
         self.clearable, self.updatable = clearable, updatable
-
-        #if not self.blank and self.clearable:
-        #    raise ValueError('Non blank FileField can not be clearable.')
-
-        #if not self.container:
-        #    raise ValueError('Container is required for Diverse FileField.')
 
     # django system check framework
     def check(self, **kwargs):
@@ -97,34 +93,53 @@ class DiverseFileField(FileField):
         # kwargs['container'] = self.container
         return name, path, args, kwargs
 
+    # get/set special action for diverse fields in pre/post save
+    def get_action(self, instance, default=None):
+        actions = getattr(instance, '__diverse_update_actions__', {})
+        return actions.get(self.name, default)
+
+    def set_action(self, instance, value):
+        """
+        Set in-signals action for diverse containers.
+        __delete__ - erase file and (or only) versions in pre_save
+        __update__ - erase versions and regenerate it in post_save
+        __change__ - erase previous file and (or only) versions in
+                     pre_save and regenerate new versions in
+                     post_save (after new file saved)
+        """
+
+        if not hasattr(instance, '__diverse_update_actions__'):
+            instance.__diverse_update_actions__ = {}
+        instance.__diverse_update_actions__[self.name] = value
+
     def save_form_data(self, instance, data):
         if data == '__delete__' and self.blank and self.clearable:
-            self.__pre_save_action__ = '__delete__'
+            action = '__delete__'
         elif data == '__update__' and self.updatable:
-            self.__pre_save_action__ = '__update__'
+            action = '__update__'
         else:
-            self.__pre_save_action__ = '__erase_previous__'
+            action = '__change__' if isuploaded(data) else '__none__'
             super(DiverseFileField, self).save_form_data(instance, data)
+        self.set_action(instance, action)
 
     def pre_save(self, instance, add):
-        action = getattr(self, '__pre_save_action__', '__erase_previous__')
+        # enhancement: may be move this to model.pre_save signal?
+        #              it will resolve *_cache field definiton ordering issue
+        file = getattr(instance, self.name)
+        action = self.get_action(instance, '__none__')
         if action == '__delete__':
             # delete file (or versions) if delete checkbox is checked
-            file = getattr(instance, self.name)
-            self._safe_erase(file, instance)
+            self._safe_erase(file, instance, save=False)
             setattr(instance, self.name, None)
         elif action == '__update__':
             # update file versions if update checkbox is checked
-            file = getattr(instance, self.name)
-            file._container.pre_delete_handler()
-            file._container.post_save_handler()
-        elif action == '__erase_previous__':
-            # erase old file (or versions) before update if field is erasable
-            file = getattr(instance, self.name)
-            if not add and file:
-                orig = instance.__class__.objects.filter(pk=instance.pk)
-                orig = list(orig) and getattr(orig[0], self.name)
-                orig and orig != file and self._safe_erase(orig, instance)
+            # delete and create versions in post_save handler
+            pass
+        elif action == '__change__' and not add:
+            # erase old file (or versions) before change if field is erasable
+            orig = instance.__class__.objects.filter(pk=instance.pk).first()
+            orig = getattr(orig, self.name, None)
+            orig and self._safe_erase(orig, instance, save=False)
 
         return super(DiverseFileField, self).pre_save(instance, add)
 
@@ -137,14 +152,24 @@ class DiverseFileField(FileField):
     # erasable deletion
     def contribute_to_class(self, cls, name):
         super(DiverseFileField, self).contribute_to_class(cls, name)
-        signals.post_delete.connect(self.post_delete, sender=cls)
+        signals.post_save.connect(self.post_save_handler, sender=cls)
+        signals.post_delete.connect(self.post_delete_handler, sender=cls)
 
-    def post_delete(self, instance, sender, **kwargs):
+    def post_save_handler(self, instance, **kwargs):
+        action = self.get_action(instance)
+        file = getattr(instance, self.attname)
+        if action in ('__update__', '__change__',):
+            if action == '__update__':
+                file._container.delete_versions()
+            file._container.create_versions()
+
+    def post_delete_handler(self, instance, **kwargs):
         file = getattr(instance, self.attname)
         self._safe_erase(file, instance, save=False)
 
     def _safe_erase(self, file, instance, save=True):
-        if not file: return
+        if not file:
+            return
         count = instance.__class__._default_manager
         count = count.filter(**{self.name: file.name,}) \
                      .exclude(pk=instance.pk).count()
@@ -155,20 +180,15 @@ class DiverseFileField(FileField):
             if file.name != self.default:
                 # And it's not the default value for future objects,
                 # delete it from the backend (or just delete versions).
-                file.delete(save=save) if self.erasable \
-                                       else file._container.pre_delete_handler()
+                if self.erasable:
+                    file.delete(save=save)
+                else:
+                    file._container.delete_versions()
             else:
                 # Otherwise, just erase all version files.
-                file._container.pre_delete_handler()
+                file._container.delete_versions()
         # Try to close the file, so it doesn't tie up resources.
         file.closed or file.close()
-
-    def south_field_triple(self):
-        """Return a suitable description of this field for South."""
-        from south.modelsinspector import introspector
-        field_class = "django.db.models.fields.files.FileField"
-        args, kwargs = introspector(self)
-        return (field_class, args, kwargs)
 
 
 # image field
@@ -179,18 +199,8 @@ class DiverseImageField(DiverseFileField, ImageField):
         super(DiverseImageField, self).__init__(verbose_name=verbose_name, **kwargs)
         self.thumbnail = thumbnail
 
-        # if not self.thumbnail:
-        #     raise ValueError('Thumbnail is required for Diverse ImageField.')
-
     def formfield(self, **kwargs):
         keys = ['clearable', 'updatable', 'thumbnail',]
         kwargs['form_class'] = DiverseFormImageField
         kwargs.update([(i, getattr(self, i, None)) for i in keys])
         return super(DiverseFileField, self).formfield(**kwargs)
-
-    def south_field_triple(self):
-        """Return a suitable description of this field for South."""
-        from south.modelsinspector import introspector
-        field_class = "django.db.models.fields.files.ImageField"
-        args, kwargs = introspector(self)
-        return (field_class, args, kwargs)

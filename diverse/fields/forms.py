@@ -1,9 +1,10 @@
+import os
 from django.forms import ValidationError
 from django.forms.fields import FileField, ImageField
 from django.utils.translation import ugettext as _
 from django.template.defaultfilters import filesizeformat
 from widgets import DiverseFileInput, DiverseImageFileInput
-import os
+
 
 class DiverseFormFileField(FileField):
     default_widget = DiverseFileInput
@@ -13,8 +14,8 @@ class DiverseFormFileField(FileField):
         self.updatable = kwargs.pop('updatable', None)
 
         widget = kwargs.get('widget', None)
-        widget = widget if isinstance(widget, type) and issubclass(widget, DiverseFileInput) \
-                        else self.default_widget
+        if not (isinstance(widget, type) and issubclass(widget, DiverseFileInput)):
+            widget = self.default_widget
 
         kwargs["widget"] = widget(
             show_delete_checkbox=self.clearable and not kwargs.get("required", True),
@@ -24,8 +25,9 @@ class DiverseFormFileField(FileField):
         super(DiverseFormFileField, self).__init__(*args, **kwargs)
 
     def clean(self, data, initial=None):
-        return data if data in ['__delete__', '__update__',] \
-                    else super(DiverseFormFileField, self).clean(data, initial)
+        return (data if data in ['__delete__', '__update__',] else
+                super(DiverseFormFileField, self).clean(data, initial))
+
 
 class DiverseFormImageField(DiverseFormFileField, ImageField):
     default_widget = DiverseImageFileInput
@@ -36,8 +38,8 @@ class DiverseFormImageField(DiverseFormFileField, ImageField):
         self.thumbnail = kwargs.pop('thumbnail', None)
 
         widget = kwargs.get('widget', None)
-        widget = widget if isinstance(widget, type) and issubclass(widget, DiverseFileInput) \
-                        else self.default_widget
+        if not (isinstance(widget, type) and issubclass(widget, DiverseFileInput)):
+            widget = self.default_widget
 
         kwargs["widget"] = widget(
             show_delete_checkbox=self.clearable and not kwargs.get("required", True),

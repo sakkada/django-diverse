@@ -1,5 +1,6 @@
-from django.conf import settings
 import tempfile
+from django.conf import settings
 
-TEMPORARY_DIR   = getattr(settings, 'DIVERSE_TEMPORARY_DIR', None) or tempfile.gettempdir()
 QUIET_OPERATION = getattr(settings, 'DIVERSE_QUIET_OPERATION', False)
+TEMPORARY_DIR   = getattr(settings, 'DIVERSE_TEMPORARY_DIR',
+                          None) or tempfile.gettempdir()

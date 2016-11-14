@@ -6,13 +6,14 @@ class ProcessorPipeline(list):
     A :class:`list` of other processors. This class allows any object that
     knows how to deal with a single processor to deal with a list of them.
     For example::
-
-        processed_image = ProcessorPipeline([ProcessorA(), ProcessorB()]).process(image)
-
+        processed_image = ProcessorPipeline(
+            [ProcessorA(), ProcessorB()]
+        ).process(image)
     """
-    def process(self, img):
+    def process(self, img, filever):
         for proc in self:
-            img = proc.process(img)
+            tfv = getattr(proc, 'takes_file_verion', False)
+            img = proc.process(*((img, filever,) if tfv else (img,)))
         return img
 
 

@@ -1,5 +1,6 @@
 from version import BaseVersion
 
+
 class MetaContainer(type):
     def __new__(cls, name, bases, attrs):
         cclass = super(MetaContainer, cls).__new__(cls, name, bases, attrs)
@@ -9,6 +10,7 @@ class MetaContainer(type):
             cclass.version_register(name, value)
 
         return cclass
+
 
 class BaseContainer(object):
     __metaclass__ = MetaContainer
@@ -68,12 +70,12 @@ class BaseContainer(object):
         return self._versions[name].version(self.source_file, data=self.data,
                                             instantiate=instantiate)
 
-    def post_save_handler(self):
-        """model post save handler"""
+    def create_versions(self):
+        """call "create" for each version (policy)"""
         for name in self._versions.keys():
             self.__getattr__(name).create()
 
-    def pre_delete_handler(self):
-        """model pre delete handler"""
+    def delete_versions(self):
+        """call "delete" for each version (policy)"""
         for name in self._versions.keys():
             self.__getattr__(name).delete()

@@ -3,6 +3,7 @@ from django.utils.translation import ugettext as _
 from django.conf import settings
 from django import forms
 
+
 class DiverseFileInput(forms.widgets.FileInput):
     """A AdminFileWidget that shows a delete and update checkbox"""
     input_type = 'file'
@@ -58,6 +59,7 @@ class DiverseFileInput(forms.widgets.FileInput):
         else:
             return mark_safe(input)
 
+
 class DiverseImageFileInput(DiverseFileInput):
 
     def __init__(self, thumbnail=None, **kwargs):
@@ -66,8 +68,9 @@ class DiverseImageFileInput(DiverseFileInput):
 
     def get_html_tpls(self, *args):
         tpls = super(DiverseImageFileInput, self).get_html_tpls(*args)
-        tpls.update({'thumb': u'<div style="float: left; margin: 0 10px 0 0;">' \
-                              u'<img src="%s" alt="%s" width="%s" height="%s"></div>',})
+        tpls.update({'thumb': u'<div style="float: left; margin: 0 10px 0 0;">'
+                              u'<img src="%s" alt="%s" width="%s" height="%s">'
+                              u'</div>',})
         return tpls
 
     def get_html_tags(self, html_tpls, input, name, value, attrs):

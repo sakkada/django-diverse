@@ -1,10 +1,15 @@
-from __future__ import with_statement
+import os
+import time
+import shutil
+import hashlib
+import mimetypes
 from django.core.files.storage import FileSystemStorage
 from . import settings
-import mimetypes, shutil, hashlib, os, time
+
 
 class VersionGenerationError(Exception):
     pass
+
 
 class Conveyor(object):
     # convention: storage should operate files on local filesystem
@@ -18,6 +23,7 @@ class Conveyor(object):
 
     def run(self, filever, force=False):
         raise NotImplementedError
+
 
 class TempFileConveyor(Conveyor):
     def __init__(self, *args, **kwargs):
