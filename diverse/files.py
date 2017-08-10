@@ -127,7 +127,8 @@ class VersionFileBase(object):
     def _default_filename(self):
         dirname, basename = os.path.split(self.source_file.name)
         basename, extension = os.path.splitext(basename)
-        return '%s/dcache/%s.%s%%s' % (dirname, basename, self.attrname)
+        return '%s/dcache/%s.%s%%s' % ('%s/' % dirname if dirname else '',
+                                       basename, self.attrname)
 
     # processors getter
     def processors(self):
