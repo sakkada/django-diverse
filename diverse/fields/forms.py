@@ -13,14 +13,13 @@ class DiverseFormFileField(FileField):
         self.clearable = kwargs.pop('clearable', None)
         self.updatable = kwargs.pop('updatable', None)
 
-        widget = kwargs.get('widget', None)
-        if not (isinstance(widget, type) and issubclass(widget, DiverseFileInput)):
-            widget = self.default_widget
-
-        kwargs["widget"] = widget(
-            show_delete_checkbox=self.clearable and not kwargs.get("required", True),
-            show_update_checkbox=self.updatable,
-        )
+        widget = kwargs.get('widget', self.default_widget)
+        if isinstance(widget, type) and issubclass(widget, self.default_widget):
+            kwargs["widget"] = widget(
+                show_update_checkbox=self.updatable,
+                show_delete_checkbox=(self.clearable and not
+                                      kwargs.get("required", True)),
+            )
 
         super(DiverseFormFileField, self).__init__(*args, **kwargs)
 
@@ -37,14 +36,13 @@ class DiverseFormImageField(DiverseFormFileField, ImageField):
         self.updatable = kwargs.pop('updatable', None)
         self.thumbnail = kwargs.pop('thumbnail', None)
 
-        widget = kwargs.get('widget', None)
-        if not (isinstance(widget, type) and issubclass(widget, DiverseFileInput)):
-            widget = self.default_widget
-
-        kwargs["widget"] = widget(
-            show_delete_checkbox=self.clearable and not kwargs.get("required", True),
-            show_update_checkbox=self.updatable,
-            thumbnail=self.thumbnail,
-        )
+        widget = kwargs.get('widget', self.default_widget)
+        if isinstance(widget, type) and issubclass(widget, self.default_widget):
+            kwargs["widget"] = widget(
+                show_update_checkbox=self.updatable,
+                show_delete_checkbox=(self.clearable and not
+                                      kwargs.get("required", True)),
+                thumbnail=self.thumbnail,
+            )
 
         super(DiverseFormFileField, self).__init__(*args, **kwargs)
