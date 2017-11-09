@@ -1,12 +1,33 @@
+import os
+from pilkit.lib import StringIO
+from pilkit.exceptions import UnknownExtension, UnknownFormat
+from pilkit.utils import (format_to_extension, extension_to_format,
+                          img_to_fobj, open_image)
 from diverse.processor import BaseProcessor
-from .processors.base import ProcessorPipeline
-from .lib import StringIO
-from .utils import UnknownFormatError, UnknownExtensionError, \
-                    format_to_extension, extension_to_format, \
-                     img_to_fobj, open_image, IKContentFile
-import os, mimetypes
+from .utils import IKContentFile
+
+
+class ProcessorPipeline(list):
+    """
+    A list of other processors. This class allows any object that
+    knows how to deal with a single processor to deal with a list of them.
+    For example:
+        processed_image = ProcessorPipeline(
+            [ProcessorA(), ProcessorB()]
+        ).process(image)
+    Note: extended version of builtin pilkit ProcessorPipeline
+          with "takes_file_verion" attribute support.
+    """
+    def process(self, img, filever):
+        for proc in self:
+            tfv = getattr(proc, 'takes_file_verion', False)
+            img = proc.process(*((img, filever,) if tfv else (img,)))
+        return img
+
 
 class ImageKit(BaseProcessor):
+    processor_pipeline_class = ProcessorPipeline
+
     def __init__(self, processors=None, format=None,
                         options=None, autoconvert=True):
         self.processors = processors
@@ -18,8 +39,9 @@ class ImageKit(BaseProcessor):
         if self.format:
             try:
                 extension = format_to_extension(self.format)
-                extension = extension in ['.jpe', '.jpeg'] and '.jpg' or extension
-            except UnknownFormatError:
+                extension = ('.jpg' if extension in ['.jpe', '.jpeg'] else
+                             extension)
+            except UnknownFormat:
                 extension = ':same'
         else:
             extension = ':same'
@@ -65,8 +87,8 @@ class ImageKit(BaseProcessor):
         processors = self.processors
         if callable(processors):
             processors = processors(source_file, self.mimetype)
-        img = ProcessorPipeline(processors or []).process(img, filever)
-
+        img = self.processor_pipeline_class(processors or
+                                            []).process(img, filever)
         options = dict(self.options or {})
 
         # Determine the format.
@@ -76,11 +98,12 @@ class ImageKit(BaseProcessor):
             extension = os.path.splitext(filename)[1].lower()
             try:
                 format = extension and extension_to_format(extension)
-            except UnknownExtensionError:
+            except UnknownExtension:
                 pass
         format = format or img.format or original_format or 'JPEG'
 
-        imgfile = img_to_fobj(img, format, autoconvert=self.autoconvert, **options)
+        imgfile = img_to_fobj(img, format,
+                              autoconvert=self.autoconvert, **options)
         content = IKContentFile(filename, imgfile.read(), format=format)
 
         return content

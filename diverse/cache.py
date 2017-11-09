@@ -25,8 +25,8 @@ class ModelCache(object):
             instance, field = None, None
 
         try:
-            cache = instance._meta.get_field('%s_cache' % field.name) \
-                    if field else None
+            cache = (instance._meta.get_field('%s_cache' % field.name)
+                     if field else None)
         except FieldDoesNotExist:
             cache = None
 

@@ -1,2 +1,3 @@
-include *.txt
-include *.rst
+include README.md
+recursive-include diverse/tests/samples *.jpg
+global-exclude *.py[co]

@@ -1,5 +1,5 @@
 """
-django file object methods, which reads data from FS (be carefull, 
+django file object methods, which reads data from FS (be carefull,
 calling one of them usually should be followed by closing file descriptor)
 
 file objects:
@@ -16,4 +16,4 @@ image file objects:
     - _get_image_dimensions
 """
 
-VERSION = (1, 8, 0)
+VERSION = (0, 1, 1)

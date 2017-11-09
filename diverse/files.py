@@ -19,8 +19,8 @@ class VersionFileBase(object):
     _conveyor = None
 
     def __init__(self, attrname, source_file, processors,
-                  filename=None, extension=None, storage=None,
-                   data=None, conveyor=None, accessor=None):
+                 filename=None, extension=None, storage=None,
+                 data=None, conveyor=None, accessor=None):
         """
         attrname    - name of version file
         source_file - django db file instance
@@ -40,9 +40,11 @@ class VersionFileBase(object):
         self.accessor = accessor
 
         # attrs list working via getters
-        self._processors = processors if isinstance(processors, list) else [processors]
+        self._processors = (processors
+                            if isinstance(processors, list) else [processors])
         self._filename = filename or self._default_filename()
-        self._extension = self._check_extension(extension) and extension or None
+        self._extension = (extension
+                           if self._check_extension(extension) else None)
         self._conveyor = conveyor or self._conveyor
         self._storage = storage or source_file.storage
 
@@ -83,8 +85,10 @@ class VersionFileBase(object):
             value = self._attrs.get('name', None)
             # get real value and set to state
             if value is None:
-                if self.generate(): return None
-                value = self._attrs[name] = self.__getattribute__('_get_%s' % name)()
+                if self.generate():
+                    return None
+                value = self._attrs[name] = self.__getattribute__(
+                    '_get_%s' % name)()
         # raise std exception
         else:
             value = self.__getattribute__(name)
@@ -104,7 +108,8 @@ class VersionFileBase(object):
         try:
             self.process(force=force)
         except:
-            if not QUIET_OPERATION: raise
+            if not QUIET_OPERATION:
+                raise
             return 1
         self._generated = True
 
@@ -128,7 +133,7 @@ class VersionFileBase(object):
         dirname, basename = os.path.split(self.source_file.name)
         basename, extension = os.path.splitext(basename)
         return '%sdcache/%s.%s%%s' % ('%s/' % dirname if dirname else '',
-                                       basename, self.attrname)
+                                      basename, self.attrname)
 
     # processors getter
     def processors(self):
@@ -152,23 +157,26 @@ class VersionFileBase(object):
 
     # fast no regexp is extension checking
     def _check_extension(self, value):
-        return value and isinstance(value, basestring) and len(value) > 1 \
-                     and value.startswith('.')
+        return (value and isinstance(value, basestring) and
+                len(value) > 1 and value.startswith('.'))
 
     # getting suggested extension from processors or raise
     def _suggested_extension(self):
         # extension = proc = None
         for proc in self.processors()[::-1]:
             extension = proc.extension(self) or ''
-            if not extension == ':same': break
+            if not extension == ':same':
+                break
 
-        extension = os.path.splitext(self.source_file.name)[1].lower() \
-                    if extension == ':same' else extension
+        extension = (os.path.splitext(self.source_file.name)[1].lower()
+                     if extension == ':same' else extension)
         if not extension or not (len(extension) > 1 and extension[0] == '.'):
-            raise NotImplementedError('Extension method override required with processor:'
-                                      ' %s, ext value: "%s". Value is empty or incorrect.'
-                                      % (proc.__class__.__name__, extension))
+            raise NotImplementedError(
+                'Extension method override required with processor:'
+                ' %s, ext value: "%s". Value is empty or incorrect.'
+                % (proc.__class__.__name__, extension))
         return extension
+
 
 class VersionImageFileBase(VersionFileBase):
     # add data related attrs

@@ -18,8 +18,10 @@ class Conveyor(object):
     storage = None
 
     def __init__(self, *args, **kwargs):
-        if not self.storage or not isinstance(self.storage, self.storage_allowed):
-            raise ValueError('Conveyor storage should be in storage_allowed (local fs).')
+        if not self.storage or not isinstance(self.storage,
+                                              self.storage_allowed):
+            raise ValueError('Conveyor storage should'
+                             ' be in storage_allowed (local fs).')
 
     def run(self, filever, force=False):
         raise NotImplementedError
@@ -33,10 +35,17 @@ class TempFileConveyor(Conveyor):
     def run(self, filever, force=False):
         source_file = filever.source_file
         dest_storage = filever.storage()
+        replace_mode = False
+
+        # check self processing (equality of source and destination)
+        if dest_storage.path(filever.path) == dest_storage.path(
+                source_file.path) and filever.attrname == 'self':
+            replace_mode = True
 
         # check file existance and force
-        if dest_storage.exists(filever.path):
-            if not force: return
+        if not replace_mode and dest_storage.exists(filever.path):
+            if not force:
+                return
             dest_storage.delete(filever.path)
 
         # open (rb mode) source file
@@ -53,6 +62,9 @@ class TempFileConveyor(Conveyor):
         tempname = self.storage.save(tempname, source_file)
         mimetype = mimetypes.guess_type(tempname)
 
+        # close source
+        source_closed and source_file.close()
+
         # safe processors call and close source
         status = True
         try:
@@ -60,30 +72,34 @@ class TempFileConveyor(Conveyor):
             for processor in filever.processors():
                 tempname, mimetype = processor.run(tempname, mimetype,
                                                     self.storage, filever)
-                if not tempname: break
+                if not tempname:
+                    break
         except Exception, e:
             status = False
             # alter default exception message
-            message = 'File version "%s" generation error for "%s" at %s. Real' \
-                      ' reason is: %%s' % (filever.attrname, source_file.name,
-                                           processor.__class__)
+            message = ('File version "%s" generation error for "%s" at %s.'
+                       ' Real reason is: %%s'
+                       % (filever.attrname,
+                          source_file.name, processor.__class__))
             e.args = tuple([message % e.args[0]] + list(e.args[1:]))
             raise
         else:
             if status:
                 # save target file with destination storage
                 # todo: check new filename correctness
+                if replace_mode:
+                    dest_storage.delete(filever.path)
                 with self.storage.open(tempname) as tempfile:
                     dest_storage.save(filever.path, tempfile)
         finally:
-            # close source and delete temporary
-            source_closed and source_file.close()
+            # delete temporary
             # warning: delete is unsafe with locks (especially write mode locks)
             #          that means that each processor have to be extremally
-            #          safety with opened filepointers
+            #          safety with opened file pointers
             self.storage.delete(tempname)
 
         if not status:
-            status = 'File version "%s" generation error for "%s" at %s.' \
-                     % (filever.attrname, source_file.name, processor.__class__)
+            status = ('File version "%s" generation error for "%s" at %s.'
+                      % (filever.attrname,
+                         source_file.name, processor.__class__))
             raise VersionGenerationError(status)

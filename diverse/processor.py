@@ -1,4 +1,5 @@
 class BaseProcessor(object):
+
     def run(self, name, mimetype, storage, filever):
         # (filename (as status), mimetype,) tuple expected
         return self.process(name, mimetype, storage, filever)

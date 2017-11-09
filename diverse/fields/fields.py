@@ -11,7 +11,7 @@ from .validators import isuploaded
 class DiverseFieldFile(FieldFile):
     def __getattr__(self, name):
         # do not create container attr by default (should i?)
-        container = self.field.container
+        container = self.get_container()
         if name in (container.attrname, '_container'):
             data = {'instance': self.instance, 'field': self.field,}
             self._container = container(self, data)
@@ -26,6 +26,12 @@ class DiverseFieldFile(FieldFile):
     def delete(self, *args, **kwargs):
         self._container.delete_versions()
         super(DiverseFieldFile, self).delete(*args, **kwargs)
+
+    def get_container(self):
+        method = 'get_container_for_{}'.format(self.field.name)
+        if hasattr(self.instance, method):
+            return getattr(self.instance, method)(field=self.field)
+        return self.field.container
 
     @property
     def extension(self):
@@ -161,6 +167,8 @@ class DiverseFileField(FileField):
         if action in ('__update__', '__change__',):
             if action == '__update__':
                 file._container.delete_versions()
+            elif action == '__change__':
+                file._container.change_original()
             file._container.create_versions()
 
     def post_delete_handler(self, instance, **kwargs):

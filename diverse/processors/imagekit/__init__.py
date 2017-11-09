@@ -1,4 +1,4 @@
-# based on django-imagekit source code
-# based on version (2.0.2 final 0)
-from processor import ImageKit
-from . import processors as ikp
+# based on django-imagekit (2.0.2 final 0) source code
+# based on pilkit processors (installed as dependency)
+from pilkit import processors as ikp
+from .processor import ImageKit

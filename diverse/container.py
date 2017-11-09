@@ -1,3 +1,4 @@
+import os
 from version import BaseVersion
 
 
@@ -6,27 +7,34 @@ class MetaContainer(type):
         cclass = super(MetaContainer, cls).__new__(cls, name, bases, attrs)
         cclass._versions = {}
         for name, value in attrs.items():
-            if name.startswith('vs_') or not isinstance(value, BaseVersion): continue
-            cclass.version_register(name, value)
+            if name.startswith('vs_') or not isinstance(value, BaseVersion):
+                continue
+            cclass.version_register(name, value, original=(name == 'self'))
 
         return cclass
 
 
 class BaseContainer(object):
+    """
+    Note: version with name "self" has special meaning - it processes original
+          source file and runs only once at file creation and saving.
+    """
+
     __metaclass__ = MetaContainer
     attrname = 'dc'
     _versions = None
+    _version_original = None
     _version_params = ('conveyor', 'versionfile', 'accessor',
                        'filename', 'extension', 'storage',)
 
     @classmethod
     def version_params(cls):
-        params = [(n, getattr(cls, 'vs_%s' % n)) for n in cls._version_params \
-                                                 if hasattr(cls, 'vs_%s' % n)]
+        params = [(n, getattr(cls, 'vs_%s' % n))
+                  for n in cls._version_params if hasattr(cls, 'vs_%s' % n)]
         return dict(params)
 
     @classmethod
-    def version_register(cls, name, value):
+    def version_register(cls, name, value, original=False):
         # set container specific version params
         # and force attrname assign to version
         params = cls.version_params()
@@ -35,7 +43,10 @@ class BaseContainer(object):
 
         # register version in internal registry
         # and del same named container property
-        cls._versions.__setitem__(name, value)
+        if original:
+            cls._version_original = value
+        else:
+            cls._versions.__setitem__(name, value)
         hasattr(cls, name) and delattr(cls, name)
 
     def __init__(self, source_file, data=None):
@@ -64,11 +75,24 @@ class BaseContainer(object):
             return cls(*args, **kwargs)
         """
 
-        if name not in self._versions:
-            raise IndexError('Version with name %s does not exists.' % name)
+        version = (self._version_original if name == 'self' else
+                   self._versions.get(name, None))
 
-        return self._versions[name].version(self.source_file, data=self.data,
-                                            instantiate=instantiate)
+        if not version:
+            raise IndexError('Version with name "%s" does not exists.' % name)
+
+        return version.version(self.source_file, data=self.data,
+                               instantiate=instantiate)
+
+    def change_original(self):
+        """change source file before save with "self" version"""
+        if self._version_original:
+            cls, args, kwargs = self.version('self', instantiate=False)
+            kwargs.update(
+                filename='%s%%s' % os.path.splitext(self.source_file.name)[0]
+            )
+            versionfile = cls(*args, **kwargs)
+            versionfile.create(force=True)
 
     def create_versions(self):
         """call "create" for each version (policy)"""
