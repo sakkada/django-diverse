@@ -2,6 +2,7 @@ import os
 from django.db.models import signals
 from django.db.models.fields.files import FileField, FieldFile
 from django.db.models.fields.files import ImageField, ImageFieldFile
+from django.utils.safestring import mark_safe
 from django.core import checks
 from .forms import DiverseFormFileField, DiverseFormImageField
 from .validators import isuploaded
@@ -48,8 +49,9 @@ class DiverseImageFieldFile(DiverseFieldFile, ImageFieldFile):
     @property
     def thumbnail_tag(self):
         thumbnail = self.thumbnail()
-        return ('<img src="%s" alt="%s" />' % (thumbnail.url, thumbnail.url,)
-                if thumbnail else '[no thumbnail]')
+        return mark_safe(
+            '<img src="%s" alt="%s" />' % (thumbnail.url, thumbnail.url,)
+            if thumbnail else '[no thumbnail]')
 
 
 # file field
