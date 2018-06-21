@@ -13,7 +13,7 @@ class VersionFileBase(object):
 
     # attrs names
     attrs_unrel = ['url', 'mimetype',]
-    attrs_rel   = ['size',]
+    attrs_rel = ['size',]
 
     # default values
     _conveyor = None
@@ -82,7 +82,7 @@ class VersionFileBase(object):
         # name in data related or unrelated keys
         if name in self.attrs_rel + self.attrs_unrel:
             # get from state
-            value = self._attrs.get('name', None)
+            value = self._attrs.get(name, None)
             # get real value and set to state
             if value is None:
                 if self.generate():
@@ -174,7 +174,7 @@ class VersionFileBase(object):
             raise NotImplementedError(
                 'Extension method override required with processor:'
                 ' %s, ext value: "%s". Value is empty or incorrect.'
-                % (proc.__class__.__name__, extension))
+                % (proc.__class__.__name__, extension,))
         return extension
 
 
@@ -195,7 +195,7 @@ class VersionImageFileBase(VersionFileBase):
             if 'image' in self.mimetype:
                 self._dimensions_cache = get_image_dimensions(self.path)
             else:
-                self._dimensions_cache = [None, None]
+                self._dimensions_cache = [None, None,]
         return self._dimensions_cache
 
 
