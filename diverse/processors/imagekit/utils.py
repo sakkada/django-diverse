@@ -1,6 +1,6 @@
 import os
 from django.core.files.base import ContentFile
-from django.utils.encoding import smart_str, smart_unicode
+from django.utils.encoding import smart_str
 from pilkit.utils import format_to_mimetype, extension_to_mimetype
 
 
@@ -24,6 +24,3 @@ class IKContentFile(ContentFile):
 
     def __str__(self):
         return smart_str(self.file.name or '')
-
-    def __unicode__(self):
-        return smart_unicode(self.file.name or u'')

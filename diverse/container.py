@@ -1,5 +1,5 @@
 import os
-from version import BaseVersion
+from .version import BaseVersion
 
 
 class MetaContainer(type):
@@ -14,13 +14,12 @@ class MetaContainer(type):
         return cclass
 
 
-class BaseContainer(object):
+class BaseContainer(metaclass=MetaContainer):
     """
     Note: version with name "self" has special meaning - it processes original
           source file and runs only once at file creation and saving.
     """
 
-    __metaclass__ = MetaContainer
     attrname = 'dc'
     _versions = None
     _version_original = None

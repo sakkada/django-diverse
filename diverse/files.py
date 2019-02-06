@@ -1,8 +1,8 @@
 import os
 import mimetypes
 from django.core.files.images import get_image_dimensions
-from settings import QUIET_OPERATION
-from accessor import LazyPolicyAccessorMixin
+from .settings import QUIET_OPERATION
+from .accessor import LazyPolicyAccessorMixin
 
 
 # todo: add logging

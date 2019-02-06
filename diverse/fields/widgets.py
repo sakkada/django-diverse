@@ -96,7 +96,7 @@ class DiverseFileInput(forms.widgets.FileInput):
                           self).value_from_datadict(data, files, name)
         return value
 
-    def render(self, name, value, attrs=None):
+    def render(self, name, value, attrs=None, renderer=None):
         input = super(DiverseFileInput, self).render(name, value, attrs)
         if value and hasattr(value, "url"):
             html_tpls = self.get_html_tpls(input, name, value, attrs)

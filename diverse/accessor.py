@@ -42,7 +42,7 @@ class LazyPolicyAccessorMixin(object):
             if not self.ac_lazy and value is not None:
                 pass
             # get from state
-            elif self._attrs.has_key(name):
+            elif name in self._attrs:
                 value = self._attrs[name]
             # get real value and set to state
             else:
@@ -54,7 +54,7 @@ class LazyPolicyAccessorMixin(object):
         # name in data unrelated keys
         elif name in self.attrs_unrel:
             # get from state
-            if self._attrs.has_key(name):
+            if name in self._attrs:
                 value = self._attrs[name]
             # get real value and set to state
             else:

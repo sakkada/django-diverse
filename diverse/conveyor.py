@@ -54,7 +54,8 @@ class TempFileConveyor(Conveyor):
 
         # get hasher
         md5hash = hashlib.md5()
-        md5hash.update('%s@%s' % (source_file.name, str(time.time())))
+        md5hash.update('{}@{}'.format(source_file.name,
+                                      time.time()).encode('utf-8', 'ignore'))
 
         # create temporary file and get mimetype
         tempname = os.path.splitext(source_file.name)
@@ -74,7 +75,7 @@ class TempFileConveyor(Conveyor):
                                                     self.storage, filever)
                 if not tempname:
                     break
-        except Exception, e:
+        except Exception as e:
             status = False
             # alter default exception message
             message = ('File version "%s" generation error for "%s" at %s.'
