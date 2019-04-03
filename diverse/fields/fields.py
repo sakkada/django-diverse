@@ -4,7 +4,9 @@ from django.db.models.fields.files import FileField, FieldFile
 from django.db.models.fields.files import ImageField, ImageFieldFile
 from django.utils.safestring import mark_safe
 from django.core import checks
+from django.contrib.admin.options import FORMFIELD_FOR_DBFIELD_DEFAULTS
 from .forms import DiverseFormFileField, DiverseFormImageField
+from .widgets import DiverseFileInput, DiverseImageFileInput
 from .validators import isuploaded
 
 
@@ -214,3 +216,10 @@ class DiverseImageField(DiverseFileField, ImageField):
         kwargs['form_class'] = DiverseFormImageField
         kwargs.update([(i, getattr(self, i, None)) for i in keys])
         return super(DiverseFileField, self).formfield(**kwargs)
+
+
+# Register fields to use custom widgets in the Admin
+FORMFIELD_FOR_DBFIELD_DEFAULTS.update({
+    DiverseFileField: {'widget': DiverseFileInput,},
+    DiverseImageField: {'widget': DiverseImageFileInput,},
+})
