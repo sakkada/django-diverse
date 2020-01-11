@@ -1,7 +1,7 @@
 import os
 from django.forms import ValidationError
 from django.forms.fields import FileField, ImageField
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.template.defaultfilters import filesizeformat
 from .widgets import DiverseFileInput, DiverseImageFileInput
 
